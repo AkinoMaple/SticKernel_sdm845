@@ -211,6 +211,18 @@ int bpf_jit_enable   __read_mostly = IS_BUILTIN(CONFIG_BPF_JIT_ALWAYS_ON);
 int bpf_jit_harden   __read_mostly;
 long bpf_jit_limit   __read_mostly;
 
+#ifndef CONFIG_MODULES
+void * __weak module_alloc(unsigned long size)
+{
+	return vmalloc_exec(size);
+}
+
+void __weak module_memfree(void *module_region)
+{
+	vfree(module_region);
+}
+#endif
+
 static atomic_long_t bpf_jit_current;
 
 /* Can be overridden by an arch's JIT compiler if it has a custom,
@@ -253,16 +265,6 @@ static void bpf_jit_uncharge_modmem(u32 pages)
 	atomic_long_sub(pages, &bpf_jit_current);
 }
 
-void *__weak bpf_jit_alloc_exec(unsigned long size)
-{
-	return module_alloc(size);
-}
-
-void __weak bpf_jit_free_exec(void *addr)
-{
-	module_memfree(addr);
-}
-
 struct bpf_binary_header *
 bpf_jit_binary_alloc(unsigned int proglen, u8 **image_ptr,
 		     unsigned int alignment,
@@ -280,7 +282,7 @@ bpf_jit_binary_alloc(unsigned int proglen, u8 **image_ptr,
 
 	if (bpf_jit_charge_modmem(pages))
 		return NULL;
-	hdr = bpf_jit_alloc_exec(size);
+	hdr = module_alloc(size);
 	if (!hdr) {
 		bpf_jit_uncharge_modmem(pages);
 		return NULL;
@@ -304,7 +306,7 @@ void bpf_jit_binary_free(struct bpf_binary_header *hdr)
 {
 	u32 pages = hdr->pages;
 
-	bpf_jit_free_exec(hdr);
+	module_memfree(hdr);
 	bpf_jit_uncharge_modmem(pages);
 }
 

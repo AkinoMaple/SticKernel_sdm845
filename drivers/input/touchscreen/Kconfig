@@ -1491,9 +1491,6 @@ config SECURE_TOUCH
 
 config I2C_BY_DMA
 	bool "I2C BY DMA"
-	  
-config WAKE_GESTURES
-	bool "wake gestures"
 
 config SWEEP2SLEEP
         tristate "Sweep to put device to sleep"
